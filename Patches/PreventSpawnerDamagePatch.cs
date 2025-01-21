@@ -1,6 +1,8 @@
 ﻿using HarmonyLib;
 using JoksterCube.ProtectSpawnerFarms.Common;
-using JoksterCube.ProtectSpawnerFarms.Settings;
+using static JoksterCube.ProtectSpawnerFarms.Domain.Utilities;
+using static JoksterCube.ProtectSpawnerFarms.Settings.PluginConfig;
+using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.DisplayMessages;
 using UnityEngine;
 
 namespace JoksterCube.ProtectSpawnerFarms.Patches;
@@ -10,21 +12,35 @@ public class PreventSpawnerDamagePatch
 {
     static bool Prefix(Destructible __instance, ZNetView ___m_nview, ref HitData hit)
     {
-        if (!PluginConfig.IsOn.IsOn() || !PluginConfig.PreventDamage.IsOn()) return true;
+        if (!IsOn.IsOn()) return true;
 
-        if (__instance.name.Contains("GreydwarfNest"))
+        var internalId = ___m_nview.GetPrefabName();
+
+        if (PreventDamage.IsOn() && IsProtectedSpawnerType(internalId) && IsInRange(__instance.transform.position))
         {
-            var currentHealth = ___m_nview.GetZDO().GetFloat(ZDOVars.s_health);
-            var fullHealth = PluginConfig.Boost.IsOn()
-                ? PluginConfig.BoostHealth.Value
-                : __instance.m_health;
-            var newHealth = Mathf.Max(fullHealth, currentHealth);
+            var fullHealth = __instance.m_health;
 
-            ___m_nview.GetZDO().Set(ZDOVars.s_health, newHealth);
+            if (Boost.IsOn())
+            {
+                fullHealth = BoostHealth.Value;
+
+                if (ShowSideMessages.IsOn())
+                {
+                    PlayerExtensions.FormatedTopLeftMessage(SpawnersHealthBoosted, fullHealth);
+                }
+            }
+
+            var currentHealth = ___m_nview.GetZDO().GetFloat(ZDOVars.s_health);
+
+            ___m_nview.GetZDO().Set(ZDOVars.s_health, Mathf.Max(fullHealth, currentHealth));
+
+            if (ShowSideMessages.IsOn())
+            {
+                PlayerExtensions.FormatedTopLeftMessage(SpawnersProtected, internalId);
+            }
 
             return false;
         }
-
         return true;
     }
 }

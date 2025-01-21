@@ -1,88 +1,85 @@
-# Server Sync Mod Template
+# Premise
+## Protect your spawners from accidental damage.
+Have you spent many hours building your perfect farms using spawners? Are you scared of accidental damage? Have you had to restore backup due to lost spawners? Then this is mod is for you.
 
-Can be used to already have your project set up and ready to go with ServerSync and basic version checking. Please see the [Original Repository](https://github.com/blaxxun-boop/ServerSync) if you have to update, or have further questions this template might not answer.
+### Features
+`[1 - General]`
 
-Thank you Blaxxun for ServerSync!
+Lock Configuration
+- If on, the configuration is locked and can be changed by server admins only.
+  - Default value: On
 
-ServerSync
-==========
+Is ON
+- Plugin is currently on or off.
+  - Default value: On
 
-Bundling the dll
-----------------
+`[2 - Shortcuts]`
 
-You need to ensure the dll is available to your mod.
+Toggle Keyboard Shortcut
+- Keyboard shortcut to toggle behavior.
+  - Default value: P + RightShift + RightControl
 
-Including the dll is best done via ILRepack (https://github.com/ravibpatel/ILRepack.Lib.MSBuild.Task). You can load this package (ILRepack.Lib.MSBuild.Task) from NuGet.
+Boost Keyboard Shortcut
+- Keyboard shortcut to apply boost.
+  - Default value: O + RightControl
 
-Then create a file ILRepack.targets in your project folder. File content:
-```
-<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Target Name="ILRepacker" AfterTargets="Build">
-        <ItemGroup>
-            <InputAssemblies Include="$(TargetPath)" />
-            <InputAssemblies Include="$(OutputPath)\ServerSync.dll" />
-        </ItemGroup>
-        <ILRepack Parallel="true" DebugInfo="true" Internalize="true" InputAssemblies="@(InputAssemblies)" OutputFile="$(TargetPath)" TargetKind="SameAsPrimaryAssembly" LibraryPath="$(OutputPath)" />
-    </Target>
-</Project>
-```
+Toggle Damage Prevention Keyboard Shortcut
+- Keyboard shortcut to toggle damage protection.
+  - Default value: P + RightControl
 
-Using the ServerSync
---------------------
+`[3 - Settings]`
 
-Declare a variable:
+Prevent Damage
+- Toggle damage prevention for spawners.
+  - Default value: On
 
-`ServerSync.ConfigSync configSync = new ServerSync.ConfigSync("my.mod.guid") { DisplayName = "My Mod Name", CurrentVersion = "1.2.3", MinimumRequiredVersion = "1.2.0" };`
+Toggle Boost
+- Toggle spawner health boost.
+  - Default value: Off
 
-All of DisplayName, CurrentVersion and MinimumRequiredVersion are optional.
-If CurrentVersion is specified, then the user will see a warning in their BepInEx log if the server version does not match the client version.
-If also MinimumRequiredVersion is specified and the client has an older version than the servers MinimumRequiredVersion, the client will be immediately disconnected and see an error message, explaining why.
-To display a friendly name for your mod in the error messages, specify DisplayName, otherwise the primary identifier will be used.
-Also note that the primary identifier (I propose using the GUID, "my.mod.guid") should never be changed (changing it will break backwards compatibility completely).
+Toggle Side Messages
+- If enabled, displays message on the side when damage is prevented and more.
+  - Default value: On
 
-There are two public methods on the ServerSync.ConfigSync class:
+Boost Health
+- Spawners health after boost.
+  - Default value: 10000
 
-- `AddConfigEntry<T>(ConfigEntry<T> configEntry)`
+Damage Prevention Range
+- Range from player for player for spawner damage protection.
+  - Default value: 10
 
-  Registers a BepInEx ConfigEntry to be synchronized.
+`[4 - Spawners]`
 
-- `AddLockingConfigEntry<T>(ConfigEntry<T> lockingConfig) where T : IConvertible`
+Greydwarf Nests
+- Apply effects to Greydwarf Nest.
+  - Default value: On
 
-  Registers a BepInEx ConfigEntry to be synchronized, whose value determines whether the config is locked. If the value is zero when converted to integer, the config is not locked. Otherwise it is locked.
-  This method must be called at most once. If not called at all, the config will never be locked.
+Evil bone pile
+- Apply effects to Evil bone pile.
+  - Default value: On
 
-Useful properties:
+Body pile
+- Apply effects to Body pile.
+  - Default value: On
 
-- `static bool ProcessingServerUpdate`
+Monument of Torment 
+- Apply effects to Monument of Torment.
+  - Default value: On
 
-  The mod is receiving and applying configs from the server. Used internally to avoid config writing loops.
+Monument of Torment (Elite)
+- Apply effects to Monument of Torment (Elite).
+  - Default value: On
 
-- `bool IsSourceOfTruth`
+Effigy of Malice
+- Apply effects to Effigy of Malice.
+  - Default value: On
 
-  Whether the local config is currently being used. False if a remote config is currently applied.
+## Installation Instructions
+*You must have BepInEx installed.*
 
-Additionally, there is a class `ServerSync.CustomSyncedValue<T>(ConfigSync, string Identifier, T value = default)` to synchronize arbitrary data (more precisely: all data which Valheims native serialization supports).
-This class registers itself to the passed ConfigSync instance upon instantiation.
-It provides a Value property and a ValueChanged event handler.
-The Identifier must be unique for the given ConfigSync instance.
+This is client only mod.
 
-
-Handy config function
----------------------
-
-To avoid manually adding each config entry to the ConfigSync instance, I propose to add a simple wrapper `config()` (with the same signature as `Config.Bind()`) to your UnityBasePlugin class:
-
-```
-ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
-{
-    ConfigEntry<T> configEntry = Config.Bind(group, name, value, description);
-
-    SyncedConfigEntry<T> syncedConfigEntry = configSync.AddConfigEntry(configEntry);
-    syncedConfigEntry.SynchronizedConfig = synchronizedSetting;
-
-    return configEntry;
-}
-
-ConfigEntry<T> config<T>(string group, string name, T value, string description, bool synchronizedSetting = true) => config(group, name, value, new ConfigDescription(description), synchronizedSetting);
-```
+1. Locate your game folder
+2. Extract the contents of the archive into the BepInEx\plugins folder.
+3. Locate JoksterCube.ProtectSpawnerFarms.cfg under BepInEx\config and configure the mod to your needs

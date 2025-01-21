@@ -1,5 +1,6 @@
 ﻿using JoksterCube.ProtectSpawnerFarms.Common;
-using JoksterCube.ProtectSpawnerFarms.Settings;
+using static JoksterCube.ProtectSpawnerFarms.Settings.PluginConfig;
+using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.DisplayMessages;
 
 namespace JoksterCube.ProtectSpawnerFarms.Domain;
 
@@ -7,27 +8,37 @@ internal static class InputManager
 {
     internal static void Update(Plugin plugin)
     {
-        if (PluginConfig.ToggleShortcut.Value.IsKeyDown())
+        if (ToggleShortcut.Value.IsKeyDown())
         {
-            PluginConfig.IsOn.Value = PluginConfig.IsOn.Value.Not();
+            IsOn.Value = IsOn.Value.Not();
 
             plugin.Config.Save();
 
-            PlayerExtensions.FormatedCenterMessage(Constants.DisplayMessages.PluginToggleMessage, PluginConfig.IsOn.Value.ToString());
+            PlayerExtensions.FormatedCenterMessage(PluginToggleMessage, IsOn.Value.ToString());
 
             return;
         }
 
-        if (!PluginConfig.IsOn.IsOn()) return;
+        if (!IsOn.IsOn()) return;
 
-
-        if (PluginConfig.TogglePreventDamageShortcut.Value.IsKeyDown())
+        if (TogglePreventDamageShortcut.Value.IsKeyDown())
         {
-            PluginConfig.PreventDamage.Value = PluginConfig.PreventDamage.Value.Not();
+            PreventDamage.Value = PreventDamage.Value.Not();
 
             plugin.Config.Save();
 
-            PlayerExtensions.FormatedCenterMessage(Constants.DisplayMessages.ProtectSpawnersToggleMessage, PluginConfig.PreventDamage.Value.ToString());
+            PlayerExtensions.FormatedCenterMessage(ProtectSpawnersToggleMessage, PreventDamage.Value.ToString());
+
+            return;
+        }
+
+        if (ToggleBoostShortcut.Value.IsKeyDown())
+        {
+            Boost.Value = Boost.Value.Not();
+
+            plugin.Config.Save();
+
+            PlayerExtensions.FormatedCenterMessage(BoostToggleMessage, BoostHealth.Value.ToString(), Boost.Value.ToString());
 
             return;
         }

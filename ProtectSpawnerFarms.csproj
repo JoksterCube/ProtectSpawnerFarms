@@ -115,6 +115,7 @@
     <Compile Include="Common\Toggle.cs" />
     <Compile Include="Common\ToggleExtensions.cs" />
     <Compile Include="Domain\InputManager.cs" />
+    <Compile Include="Domain\Utilities.cs" />
     <Compile Include="Patches\PreventSpawnerDamagePatch.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -8,13 +8,14 @@ using static JoksterCube.ProtectSpawnerFarms.Settings.Constants;
 using ServerSync;
 using JoksterCube.ProtectSpawnerFarms.Settings;
 using JoksterCube.ProtectSpawnerFarms.Domain;
-using UnityEngine;
 
 namespace JoksterCube.ProtectSpawnerFarms;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 public class Plugin : BaseUnityPlugin
 {
+    internal static string ConnectionError = string.Empty;
+
     private readonly string ConfigFileFullPath = Paths.ConfigPath + Path.DirectorySeparatorChar + ConfigFileName;
 
     private readonly Harmony _harmony = new(ModGUID);

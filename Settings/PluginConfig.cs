@@ -19,12 +19,14 @@ public static class PluginConfig
     public static ConfigEntry<Toggle> PreventDamage = null!;
     public static ConfigEntry<Toggle> Boost = null!;
     public static ConfigEntry<float> BoostHealth = null!;
-    public static ConfigEntry<float> DamagePreventionRange;
+    public static ConfigEntry<float> DamagePreventionRange = null!;
+    public static ConfigEntry<Toggle> ShowSideMessages = null!;
 
     public static ConfigEntry<Toggle> ToggleGreydwarfNest = null!;
     public static ConfigEntry<Toggle> ToggleEvilBonePile = null!;
     public static ConfigEntry<Toggle> ToggleBodyPile = null!;
     public static ConfigEntry<Toggle> ToggleMonumentOfTorment = null!;
+    public static ConfigEntry<Toggle> ToggleMonumentOfTormentElite = null!;
     public static ConfigEntry<Toggle> ToggleEffigyOfMalice = null!;
 
 
@@ -42,18 +44,20 @@ public static class PluginConfig
         TogglePreventDamageShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.PreventDamage.Name, new KeyboardShortcut(KeyCode.P, KeyCode.RightControl), Shortcuts.PreventDamage.Description);
 
         PreventDamage = ConfigOptions.Config(Setting.Name, Setting.PreventDamage.Name, Toggle.On, Setting.PreventDamage.Description);
-        Boost = ConfigOptions.Config(Setting.Name, Setting.Boost.Name, Toggle.On, Setting.Boost.Description);
+        Boost = ConfigOptions.Config(Setting.Name, Setting.Boost.Name, Toggle.Off, Setting.Boost.Description);
+        ShowSideMessages = ConfigOptions.Config(Setting.Name, Setting.ShowSideMessages.Name, Toggle.On, Setting.ShowSideMessages.Description);
         BoostHealth = ConfigOptions.Config(Setting.Name, Setting.BoostHealth.Name, 10000f, Setting.BoostHealth.Description);
 
         DamagePreventionRange = ConfigOptions.Config(Setting.Name, Setting.DamagePreventionRange.Name, 25f,
                          new ConfigDescription(Setting.DamagePreventionRange.Description,
-                         new AcceptableValueRange<float>(1f, 50f)));
+                         new AcceptableValueRange<float>(1f, 100f)));
 
 
-        ToggleGreydwarfNest = ConfigOptions.Config(Spawners.Name, Spawners.GreydwarfNests.Name, Toggle.On, Spawners.GreydwarfNests.Description);
+        ToggleGreydwarfNest = ConfigOptions.Config(Spawners.Name, Spawners.GreydwarfNest.Name, Toggle.On, Spawners.GreydwarfNest.Description);
         ToggleEvilBonePile = ConfigOptions.Config(Spawners.Name, Spawners.EvilBonePile.Name, Toggle.On, Spawners.EvilBonePile.Description);
         ToggleBodyPile = ConfigOptions.Config(Spawners.Name, Spawners.BodyPile.Name, Toggle.On, Spawners.BodyPile.Description);
         ToggleMonumentOfTorment = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTorment.Name, Toggle.On, Spawners.MonumentOfTorment.Description);
+        ToggleMonumentOfTormentElite = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTormentElite.Name, Toggle.On, Spawners.MonumentOfTormentElite.Description);
         ToggleEffigyOfMalice = ConfigOptions.Config(Spawners.Name, Spawners.EffigyOfMalice.Name, Toggle.On, Spawners.EffigyOfMalice.Description);
     }
 }

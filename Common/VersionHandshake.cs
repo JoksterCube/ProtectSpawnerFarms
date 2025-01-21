@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using HarmonyLib;
-using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.Messages;
 using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.Plugin;
 
 namespace JoksterCube.ProtectSpawnerFarms.Common;
@@ -49,7 +48,7 @@ public class ShowConnectionError
         {
             __instance.m_connectionFailedError.fontSizeMax = 25;
             __instance.m_connectionFailedError.fontSizeMin = 15;
-            __instance.m_connectionFailedError.text += $"\n{ConnectionError}";
+            __instance.m_connectionFailedError.text += $"\n{Plugin.ConnectionError}";
         }
     }
 }
@@ -76,7 +75,7 @@ public static class RpcHandlers
         Plugin.PluginLogger.LogInfo($"Version check, local: {ModVersion},  remote: {version}");
         if (version != ModVersion)
         {
-            ConnectionError = $"{ModName} Installed: {ModVersion}\n Needed: {version}";
+            Plugin.ConnectionError = $"{ModName} Installed: {ModVersion}\n Needed: {version}";
             if (!ZNet.instance.IsServer()) return;
             // Different versions - force disconnect client from server
             Plugin.PluginLogger.LogWarning($"Peer ({rpc.m_socket.GetHostName()}) has incompatible version, disconnecting...");
