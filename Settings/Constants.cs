@@ -35,119 +35,90 @@ internal static class Constants
     {
         internal static class General
         {
-            internal const string Name = "1 - General";
+            public const string Name = "1 - General";
 
-            internal static class Lock
-            {
-                internal const string Name = "Lock Configuration";
-                internal const string Description = "If on, the configuration is locked and can be changed by server admins only.";
-            }
+            internal static readonly ConfigInfo Lock = new(
+                "Lock Configuration",
+                "If on, the configuration is locked and can be changed by server admins only.");
 
-            internal static class IsOn
-            {
-                internal const string Name = "Is ON";
-                internal const string Description = "Plugin is currently on or off.";
-            }
+            internal static readonly ConfigInfo IsOn = new(
+                "Is ON",
+                "Plugin is currently on or off.");
         }
 
         internal static class Shortcuts
         {
-            internal const string Name = "2 - Shortcuts";
+            public const string Name = "2 - Shortcuts";
 
-            internal static class ToggleOn
-            {
-                internal const string Name = "Toggle Keyboard Shortcut";
-                internal const string Description = "Keyboard shortcut to toggle behaviour.";
-            }
+            internal static readonly ConfigInfo ToggleOn = new(
+                "Toggle Keyboard Shortcut",
+                "Keyboard shortcut to toggle behaviour.");
 
-            internal static class ApplyBoost
-            {
-                internal const string Name = "Boost Keyboard Shortcut";
-                internal const string Description = "Keyboard shortcut to apply boost.";
-            }
-            internal static class PreventDamage
-            {
-                internal const string Name = "Toggle Damage Prevention Keyboard Shortcut";
-                internal const string Description = "Keyboard shortcut to toggle damage protection.";
-            }
+            internal static readonly ConfigInfo ApplyBoost = new(
+                "Boost Keyboard Shortcut",
+                "Keyboard shortcut to apply boost.");
+
+            internal static readonly ConfigInfo PreventDamage = new(
+                "Toggle Damage Prevention Keyboard Shortcut",
+                "Keyboard shortcut to toggle damage protection.");
         }
 
         internal static class Setting
         {
-            internal const string Name = "3 - Settings";
+            public const string Name = "3 - Settings";
 
-            internal static class PreventDamage
-            {
-                internal const string Name = "Prevent Damage";
-                internal const string Description = "Toggle damage prevention for spawners.";
-            }
+            internal static readonly ConfigInfo PreventDamage = new(
+                "Prevent Damage",
+                "Toggle damage prevention for spawners.");
 
-            internal static class Boost
-            {
-                internal const string Name = "Toggle Boost";
-                internal const string Description = "Toggle spawner health boost.";
-            }
+            internal static readonly ConfigInfo Boost = new(
+                "Toggle Boost",
+                "Toggle spawner health boost.");
 
-            internal static class ShowSideMessages
-            {
-                internal const string Name = "Toggle Side Messages";
-                internal const string Description = "If enabled, displays message on the side when damage is prevented and more.";
-            }
+            internal static readonly ConfigInfo ShowSideMessages = new(
+                "Toggle Side Messages",
+                "If enabled, displays message on the side when damage is prevented and more.");
 
-            internal static class BoostHealth
-            {
-                internal const string Name = "Boost Health";
-                internal const string Description = "Spawners health after boost.";
-            }
+            internal static readonly ConfigInfo BoostHealth = new(
+                "Boost Health",
+                "Spawners health after boost.");
 
-            internal static class DamagePreventionRange
-            {
-                internal const string Name = "Damage Prevention Range";
-                internal const string Description = "Range from player for player for spawner damage protection.";
-            }
+            internal static readonly ConfigInfo DamagePreventionRange = new(
+                "Damage Prevention Range",
+                "Range from player for player for spawner damage protection.");
         }
 
         internal static class Spawners
         {
-            internal const string Name = "4 - Spawners";
+            public const string Name = "4 - Spawners";
 
-            internal static class GreydwarfNest
-            {
-                internal const string Name = "Greydwarf Nests";
-                internal const string Description = "Apply effects to Greydwarf Nest.";
-            }
+            internal static readonly ConfigInfo GreydwarfNest = new(
+                "Greydwarf Nests",
+                "Apply effects to Greydwarf Nest.");
 
-            internal static class EvilBonePile
-            {
-                internal const string Name = "Evil bone pile";
-                internal const string Description = "Apply effects to Evil bone pile.";
-            }
+            internal static readonly ConfigInfo EvilBonePile = new(
+                "Evil bone pile",
+                "Apply effects to Evil bone pile.");
 
-            internal static class BodyPile
-            {
-                internal const string Name = "Body pile";
-                internal const string Description = "Apply effects to Body pile.";
-            }
+            internal static readonly ConfigInfo BodyPile = new(
+                "Body pile",
+                "Apply effects to Body pile.");
 
-            internal static class MonumentOfTorment
-            {
-                internal const string Name = "Monument of Torment";
-                internal const string Description = "Apply effects to Monument of Torment.";
-            }
+            internal static readonly ConfigInfo MonumentOfTorment = new(
+                "Monument of Torment",
+                "Apply effects to Monument of Torment.");
 
-            internal static class MonumentOfTormentElite
-            {
-                internal const string Name = "Monument of Torment (Elite)";
-                internal const string Description = "Apply effects to Monument of Torment (Elite).";
-            }
+            internal static readonly ConfigInfo MonumentOfTormentElite = new(
+                "Monument of Torment (Elite)",
+                "Apply effects to Monument of Torment (Elite).");
 
-            internal static class EffigyOfMalice
-            {
-                internal const string Name = "Effigy of Malice";
-                internal const string Description = "Apply effects to Effigy of Malice.";
-            }
+            internal static readonly ConfigInfo EffigyOfMalice = new(
+                "Effigy of Malice",
+                "Apply effects to Effigy of Malice.");
         }
     }
+
+
 
     internal static class SpawnerIds
     {

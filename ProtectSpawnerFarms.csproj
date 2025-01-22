@@ -121,6 +121,7 @@
     <Compile Include="Common\VersionHandshake.cs" />
     <Compile Include="Settings\Constants.cs" />
     <Compile Include="Settings\PluginConfig.cs" />
+    <Compile Include="Settings\ConfigInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />
