@@ -1,6 +1,6 @@
 {
   "name": "ProtectSpawnerFarms",
-  "version_number": "1.0.3",
+  "version_number": "1.1.0",
   "website_url": "https://github.com/JoksterCube/ProtectSpawnerFarms",
   "description": "Protect your spawners from accidental damage.",
   "dependencies": [
