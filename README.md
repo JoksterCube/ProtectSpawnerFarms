@@ -2,6 +2,11 @@
 ## Protect your spawner farms from accidental damage.
 Have you spent many hours building your perfect farms using spawners? Are you scared of accidental damage? Have you had to restore backup due to lost spawners? Then this is mod is for you.
 
+### How it works
+
+When plugin is active spawners will not be getting any damage. In fact, if active spawners will reset their health to max.
+Additionally, there is a way to go beyond max HP, in cases where you need to be sure you can leave your farms to people without this mod.
+
 ### Features
 `[1 - General]`
 
