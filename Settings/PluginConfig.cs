@@ -40,13 +40,13 @@ public static class PluginConfig
 
         IsOn = ConfigOptions.Config(General.Name, General.IsOn.Name, Toggle.On, General.IsOn.Description);
 
-        ToggleShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.ToggleOn.Name, new KeyboardShortcut(KeyCode.P, KeyCode.RightControl, KeyCode.RightShift), Shortcuts.ToggleOn.Description);
-        ToggleBoostShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.ApplyBoost.Name, new KeyboardShortcut(KeyCode.O, KeyCode.RightControl), Shortcuts.ApplyBoost.Description);
-        TogglePreventDamageShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.PreventDamage.Name, new KeyboardShortcut(KeyCode.P, KeyCode.RightControl), Shortcuts.PreventDamage.Description);
+        ToggleShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.ToggleOn.Name, new KeyboardShortcut(KeyCode.P, KeyCode.RightControl, KeyCode.RightShift), Shortcuts.ToggleOn.Description, false);
+        ToggleBoostShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.ApplyBoost.Name, new KeyboardShortcut(KeyCode.O, KeyCode.RightControl), Shortcuts.ApplyBoost.Description, false);
+        TogglePreventDamageShortcut = ConfigOptions.Config(Shortcuts.Name, Shortcuts.PreventDamage.Name, new KeyboardShortcut(KeyCode.P, KeyCode.RightControl), Shortcuts.PreventDamage.Description, false);
 
-        PreventDamage = ConfigOptions.Config(Setting.Name, Setting.PreventDamage.Name, Toggle.On, Setting.PreventDamage.Description);
+        PreventDamage = ConfigOptions.Config(Setting.Name, Setting.PreventDamage.Name, Toggle.On, Setting.PreventDamage.Description, false);
         Boost = ConfigOptions.Config(Setting.Name, Setting.Boost.Name, Toggle.Off, Setting.Boost.Description);
-        ShowSideMessages = ConfigOptions.Config(Setting.Name, Setting.ShowSideMessages.Name, Toggle.On, Setting.ShowSideMessages.Description);
+        ShowSideMessages = ConfigOptions.Config(Setting.Name, Setting.ShowSideMessages.Name, Toggle.On, Setting.ShowSideMessages.Description, false);
         BoostHealth = ConfigOptions.Config(Setting.Name, Setting.BoostHealth.Name, 10000f, Setting.BoostHealth.Description);
 
         DamagePreventionRange = ConfigOptions.Config(Setting.Name, Setting.DamagePreventionRange.Name, 25f,
@@ -54,12 +54,12 @@ public static class PluginConfig
                          new AcceptableValueRange<float>(1f, 100f)));
 
 
-        ToggleGreydwarfNest = ConfigOptions.Config(Spawners.Name, Spawners.GreydwarfNest.Name, Toggle.On, Spawners.GreydwarfNest.Description);
-        ToggleEvilBonePile = ConfigOptions.Config(Spawners.Name, Spawners.EvilBonePile.Name, Toggle.On, Spawners.EvilBonePile.Description);
-        ToggleBodyPile = ConfigOptions.Config(Spawners.Name, Spawners.BodyPile.Name, Toggle.On, Spawners.BodyPile.Description);
-        ToggleMonumentOfTorment = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTorment.Name, Toggle.On, Spawners.MonumentOfTorment.Description);
-        ToggleMonumentOfTormentElite = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTormentElite.Name, Toggle.On, Spawners.MonumentOfTormentElite.Description);
-        ToggleEffigyOfMalice = ConfigOptions.Config(Spawners.Name, Spawners.EffigyOfMalice.Name, Toggle.On, Spawners.EffigyOfMalice.Description);
+        ToggleGreydwarfNest = ConfigOptions.Config(Spawners.Name, Spawners.GreydwarfNest.Name, Toggle.On, Spawners.GreydwarfNest.Description, false);
+        ToggleEvilBonePile = ConfigOptions.Config(Spawners.Name, Spawners.EvilBonePile.Name, Toggle.On, Spawners.EvilBonePile.Description, false);
+        ToggleBodyPile = ConfigOptions.Config(Spawners.Name, Spawners.BodyPile.Name, Toggle.On, Spawners.BodyPile.Description, false);
+        ToggleMonumentOfTorment = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTorment.Name, Toggle.On, Spawners.MonumentOfTorment.Description, false);
+        ToggleMonumentOfTormentElite = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTormentElite.Name, Toggle.On, Spawners.MonumentOfTormentElite.Description, false);
+        ToggleEffigyOfMalice = ConfigOptions.Config(Spawners.Name, Spawners.EffigyOfMalice.Name, Toggle.On, Spawners.EffigyOfMalice.Description, false);
     }
     internal static bool IsProtectedSpawnerType(string name)
     {
