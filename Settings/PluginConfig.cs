@@ -3,6 +3,7 @@ using JoksterCube.ProtectSpawnerFarms.Common;
 using ServerSync;
 using UnityEngine;
 using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.Groups;
+using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.SpawnerIds;
 
 namespace JoksterCube.ProtectSpawnerFarms.Settings;
 
@@ -59,5 +60,23 @@ public static class PluginConfig
         ToggleMonumentOfTorment = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTorment.Name, Toggle.On, Spawners.MonumentOfTorment.Description);
         ToggleMonumentOfTormentElite = ConfigOptions.Config(Spawners.Name, Spawners.MonumentOfTormentElite.Name, Toggle.On, Spawners.MonumentOfTormentElite.Description);
         ToggleEffigyOfMalice = ConfigOptions.Config(Spawners.Name, Spawners.EffigyOfMalice.Name, Toggle.On, Spawners.EffigyOfMalice.Description);
+    }
+    internal static bool IsProtectedSpawnerType(string name)
+    {
+        if (name == GreydwarfNest) return ToggleGreydwarfNest.IsOn();
+        if (name == EvilBonePile) return ToggleEvilBonePile.IsOn();
+        if (name == BodyPile) return ToggleBodyPile.IsOn();
+        if (name == MonumentOfTorment) return ToggleMonumentOfTorment.IsOn();
+        if (name == MonumentOfTormentElite) return ToggleMonumentOfTormentElite.IsOn();
+        if (name == EffigyOfMalice) return ToggleEffigyOfMalice.IsOn();
+        return false;
+    }
+
+    internal static bool IsInRange(Vector3 position)
+    {
+        var playerPosition = Player.m_localPlayer.transform.position;
+        var distance = Vector3.Distance(position, playerPosition);
+
+        return distance <= DamagePreventionRange.Value;
     }
 }

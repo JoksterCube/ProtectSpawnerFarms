@@ -1,6 +1,5 @@
 ﻿using HarmonyLib;
 using JoksterCube.ProtectSpawnerFarms.Common;
-using static JoksterCube.ProtectSpawnerFarms.Domain.Utilities;
 using static JoksterCube.ProtectSpawnerFarms.Settings.PluginConfig;
 using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.DisplayMessages;
 using UnityEngine;
@@ -12,6 +11,8 @@ public class PreventSpawnerDamagePatch
 {
     static bool Prefix(Destructible __instance, ZNetView ___m_nview, ref HitData hit)
     {
+        Plugin.PluginLogger.LogInfo(___m_nview.GetZDO().m_uid.ID);
+
         if (!IsOn.IsOn()) return true;
 
         var internalId = ___m_nview.GetPrefabName();
