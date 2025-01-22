@@ -118,8 +118,6 @@ internal static class Constants
         }
     }
 
-
-
     internal static class SpawnerIds
     {
         internal const string GreydwarfNest = "Spawner_GreydwarfNest";
