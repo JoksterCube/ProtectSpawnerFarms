@@ -1,5 +1,5 @@
-# Premise
-## Protect your spawners from accidental damage.
+# Description
+## Protect your spawner farms from accidental damage.
 Have you spent many hours building your perfect farms using spawners? Are you scared of accidental damage? Have you had to restore backup due to lost spawners? Then this is mod is for you.
 
 ### Features

@@ -130,6 +130,7 @@
     <Content Include="Libs\ServerSync.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="LICENSE.txt" />
     <Content Include="README.md" />
     <Content Include="Thunderstore\CHANGELOG.md" />
     <Content Include="Thunderstore\icon.png" />
