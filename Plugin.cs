@@ -14,6 +14,8 @@ namespace JoksterCube.ProtectSpawnerFarms;
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 public class Plugin : BaseUnityPlugin
 {
+    internal static Plugin Instance;
+
     internal static string ConnectionError = string.Empty;
 
     private readonly string ConfigFileFullPath = Paths.ConfigPath + Path.DirectorySeparatorChar + ConfigFileName;
@@ -31,6 +33,8 @@ public class Plugin : BaseUnityPlugin
 
     public void Awake()
     {
+        Instance = this;
+
         PluginConfig.Build(Config, ConfigSync);
 
         Assembly assembly = Assembly.GetExecutingAssembly();

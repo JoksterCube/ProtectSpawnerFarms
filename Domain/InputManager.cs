@@ -19,7 +19,11 @@ internal static class InputManager
             return;
         }
 
-        if (!IsOn.IsOn()) return;
+        if (!IsOn.IsOn())
+        {
+            ResetActiveState();
+            return;
+        }
 
         if (TogglePreventDamageShortcut.Value.IsKeyDown())
         {
@@ -39,6 +43,44 @@ internal static class InputManager
             plugin.Config.Save();
 
             PlayerExtensions.FormatedCenterMessage(BoostToggleMessage, BoostHealth.Value.ToString(), Boost.Value.ToString());
+
+            return;
+        }
+
+        if(ToggleSelectedOnlyShortcut.Value.IsKeyDown())
+        {
+            SelectedOnly.Value = SelectedOnly.Value.Not();
+
+            plugin.Config.Save();
+
+            PlayerExtensions.FormatedCenterMessage(SelectedOnlyToggleMessage, SelectedOnly.Value.ToString());
+
+            return;
+        }
+
+        if (ResetHealthToOriginalShortcut.Value.IsKeyDown())
+        {
+            ToggleActiveState(ActiveState.Reset);
+
+            PlayerExtensions.FormatedCenterMessage(ResetHealthMessage, IsCurrentActiveState(ActiveState.Reset).ToToggle().ToString());
+
+            return;
+        }
+
+        if (SelectSpawnerShortcut.Value.IsKeyDown())
+        {
+            ToggleActiveState(ActiveState.Select);
+
+            PlayerExtensions.FormatedCenterMessage(SelectSpawnerMessage, IsCurrentActiveState(ActiveState.Select).ToToggle().ToString());
+
+            return;
+        }
+
+        if (DeselectSpawnerShortcut.Value.IsKeyDown())
+        {
+            ToggleActiveState(ActiveState.Deselect);
+
+            PlayerExtensions.FormatedCenterMessage(DeselectSpawnerMessage, IsCurrentActiveState(ActiveState.Deselect).ToToggle().ToString());
 
             return;
         }
