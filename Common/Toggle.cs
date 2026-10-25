@@ -1,6 +1,6 @@
-﻿namespace JoksterCube.ProtectSpawnerFarms.Common;
+namespace JoksterCube.ProtectSpawnerFarms.Common;
 
-public enum Toggle
+internal enum Toggle
 {
     On = 1,
     Off = 0

@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.Plugin;
 
@@ -34,3 +35,4 @@ using static JoksterCube.ProtectSpawnerFarms.Settings.Constants.Plugin;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion(ModVersion)]
 [assembly: AssemblyFileVersion(ModVersion)]
+[assembly: InternalsVisibleTo("ProtectSpawnerFarms.Tests")]

@@ -1,9 +1,9 @@
 {
   "name": "ProtectSpawnerFarms",
-  "version_number": "1.1.0",
+  "version_number": "2.0.0",
   "website_url": "https://github.com/JoksterCube/ProtectSpawnerFarms",
-  "description": "Protect your spawners from accidental damage.",
+  "description": "Protect the spawners your farms are built around: no damage while you're near, raised health, a shield bubble, and a Compendium list shared with your friends.",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2202"
+    "denikson-BepInExPack_Valheim-5.4.2351"
   ]
 }

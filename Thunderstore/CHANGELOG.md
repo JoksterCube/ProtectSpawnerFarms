@@ -1,4 +1,5 @@
-| `Version` | `Update Notes`     |
-|-----------|--------------------|
-| 1.0.0     | - Initial Release. |
-| 1.1.0     | - Added a way to select specific spawners for protection. |
+| Version | Update Notes |
+|----------|---------------|
+| **2.0.0** | **Rebuilt** for the current game and BepInEx.<br>**New:** Protect the closest spawner from two buttons that slide out next to your inventory, instead of keyboard shortcuts and hitting it. A highlight button paints the nearest spawner in a pulsing color you can see through walls. Protected spawners sit in a shield bubble (color and opacity adjustable) and give a *Protecting spawner* (or *Protected spawner nearby*) status while you are near. Looking at a protected spawner shows who protected it. A new **Protected spawners** page in the Compendium lists every protected spawner with who protected it and when, where it is, when it was last guarded and last blocked a hit, and a **Show on map** button.<br>**Protection:** Hits from anyone are blocked while you are within 20 m, not just your own. A server with the mod keeps protected spawners at full health by itself, so nobody can destroy them. Every destructible spawner is found automatically, including the Deep North's Wardrobe Shafts and Malicious Ice.<br>**Sharing:** A server with the mod keeps one list for everyone (Who Can Change Protection: anyone, admins only, or only the protector and admins). On a server without the mod, players with the mod share their lists while they play together. Lists are saved per world, and changes are ordered by game time, so a wrong computer clock can't undo them.<br>**Important:** Keyboard shortcuts and 1.x settings are gone, and spawners protected with 1.x need to be protected again. When the server has the mod, players need the same version. New icon. |
+| **1.1.0** | - Added a way to select specific spawners for protection. |
+| **1.0.0** | - Initial Release. |

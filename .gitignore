@@ -5,6 +5,8 @@ riderModule.iml
 /_ReSharper.Caches/
 .idea/
 .vs/
-ServerSyncModTemplate.sln.DotSettings.user
+*.sln.DotSettings.user
 *.zip
 /Thunderstore/README.md
+environment.props.user
+Nexus/
