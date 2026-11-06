@@ -5,7 +5,7 @@ namespace JoksterCube.ProtectSpawnerFarms.Domain;
 
 // The inventory buttons' icons, painted when first needed in the same style as TempestRite's flap buttons (a glowing
 // rune or emblem over a soft shadow), so the mod ships no image files:
-// - Protect: a round wooden shield in an iron rim, the rune Algiz (ᛉ, protection) cut in it and glowing.
+// - Protect: a round wooden shield in an iron rim, its domed iron boss ringed with amber light.
 // - Highlight: an eye glowing amber, the highlight's own color, light rays fanning out above and below it.
 internal static class ButtonIcons
 {
@@ -71,12 +71,26 @@ internal static class ButtonIcons
             return new Color(0.12f, 0.07f, 0.04f, Mathf.Clamp01(0.5f - d) * 0.7f);
         });
 
-        // Algiz, cut in and glowing; never thinner than a pixel or so, so it still reads when small.
-        float w = Mathf.Max(1.8f * s, 1.1f);
-        GlowLine(canvas, (x, y) => Mathf.Min(Capsule(x, y, cx, cy - 14f * s, cx, cy + 15f * s, w),
-                Mathf.Min(Capsule(x, y, cx, cy - 1f * s, cx - 9.5f * s, cy - 12.5f * s, w),
-                    Capsule(x, y, cx, cy - 1f * s, cx + 9.5f * s, cy - 12.5f * s, w))),
+        PaintBoss(canvas, cx, cy, s);
+    }
+
+    // A domed iron boss in the middle, a ring of amber light glowing round it.
+    private static void PaintBoss(IconCanvas canvas, float cx, float cy, float s)
+    {
+        float r = 9f * s;
+        GlowLine(canvas, (x, y) => Mathf.Abs(Circle(x, y, cx, cy, r + 2.2f * s)) - Mathf.Max(0.9f * s, 0.6f),
             new Color(1f, 0.45f, 0.1f), new Color(1f, 0.82f, 0.45f), Mathf.Max(4.5f * s, 2.5f), 0.8f);
+        Shadow(canvas, (x, y) => Circle(x, y, cx, cy, r), 0.5f);
+        canvas.Paint((x, y) =>
+        {
+            float d = Circle(x, y, cx, cy, r);
+            float nx = (x - cx) / r, ny = (y - cy) / r;
+            float lit = Mathf.Clamp01(0.55f - 0.6f * (nx * 0.6f + ny * 0.8f) - 0.35f * (nx * nx + ny * ny));
+            float light = Mathf.Lerp(0.22f, 0.8f, lit);
+            return new Color(light, light * 0.97f, light * 0.93f, Mathf.Clamp01(0.5f - d));
+        });
+        canvas.Paint((x, y) => new Color(1f, 1f, 0.95f,
+            Mathf.Clamp01(0.5f - Circle(x, y, cx - 3f * s, cy - 3.5f * s, Mathf.Max(1.8f * s, 0.8f))) * 0.7f));
     }
 
     // ---- Highlight ----

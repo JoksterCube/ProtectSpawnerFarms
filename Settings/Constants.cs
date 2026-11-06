@@ -10,7 +10,7 @@ internal static class Constants
     internal static class Plugin
     {
         internal const string ModName = "ProtectSpawnerFarms";
-        internal const string ModVersion = "2.1.0";
+        internal const string ModVersion = "2.1.1";
         internal const string Author = "JoksterCube";
         internal const string ModGUID = $"{Author}.{ModName}";
         internal const string Description = "Protect the spawners your farms are built around: no damage while you're near, raised health, a shield bubble, and a Compendium list shared with your friends.";

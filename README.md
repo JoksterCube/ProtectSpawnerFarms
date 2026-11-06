@@ -142,5 +142,5 @@ Report bugs or suggest improvements on [GitHub](https://github.com/JoksterCube/P
 ---
 
 **Author:** JoksterCube<br>
-**Version:** 2.1.0<br>
+**Version:** 2.1.1<br>
 **License:** GNU GPL v3 or later
