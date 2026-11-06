@@ -6,13 +6,15 @@ using static JoksterCube.ProtectSpawnerFarms.Settings.PluginConfig;
 
 namespace JoksterCube.ProtectSpawnerFarms.Domain;
 
-// Server Protection: on a server with the mod, the server itself keeps protected spawners at full health.
+// Server Protection: on a server with the mod, protected spawners can't be destroyed, by anyone.
 //
 // A hit is worked out by the game that owns the spawner, often a player without the mod, so the server can't stop
-// the hit. But every change to the spawner reaches the server, and the server can write over it: whenever a
-// protected spawner's health drops, the server puts it back and marks its copy as clearly newer, so every player,
-// the one hitting it included, takes the server's health. Destroying one would take Boosted Health worth of damage
-// between two network updates.
+// the hit itself. Two things keep the spawner anyway:
+// - Health: whenever a protected spawner's health drops, the server puts it back and marks its copy as clearly
+//   newer, so every player, the one hitting it included, takes the server's health.
+// - Destroying: a game that destroys an object tells the server, which removes it and tells everyone else. For a
+//   protected spawner the server refuses: it keeps the spawner, doesn't pass the message on, and sends the spawner
+//   back at full health to the player whose game destroyed it.
 internal static class ServerGuard
 {
     private const string Feature = "Server protection";
@@ -20,20 +22,15 @@ internal static class ServerGuard
     private const float MinCheckInterval = 0.1f;
     // Also checked on its own this often.
     private const float CheckInterval = 1f;
-    // How often to look again for protected spawners that weren't found (for example destroyed before protection).
-    private const float MissingRetry = 10f;
-    // How much newer the server's copy is marked, so it wins over the owner's own changes made in the meantime.
-    private const uint RevisionLead = 100;
 
-    private static readonly Dictionary<string, ZDOID> Index = [];
-    private static readonly HashSet<string> IndexedKeys = [];
-    private static readonly Dictionary<int, float> DefaultHealthByPrefab = [];
-    private static readonly Dictionary<int, List<string>> Wanted = [];
+    internal static readonly int DestroyMethod = "DestroyZDO".GetStableHashCode();
+    private static readonly List<ZDOID> Kept = [];
+    private static readonly List<ZDOID> Destroyed = [];
+
     private static float _lastCheck = -1f;
-    private static float _nextRetry;
 
     private static bool Active =>
-        ZNet.instance && ZNet.instance.IsServer() && ServerProtection.IsOn() && ZDOMan.instance != null && ZNetScene.instance;
+        ZNet.instance && ZNet.instance.IsServer() && ZDOMan.instance != null && ZNetScene.instance;
 
     // Every frame on the server.
     internal static void Update()
@@ -47,13 +44,54 @@ internal static class ServerGuard
         if (Time.time - _lastCheck >= MinCheckInterval) Run();
     }
 
-    internal static void ClearSession()
+    internal static void ClearSession() => _lastCheck = -1f;
+
+    // A player's "destroy these objects" message, as it reaches the server. Takes the protected spawners out of it.
+    // Returns false when nothing was left to destroy, so the message is dropped.
+    internal static bool FilterDestroy(ZRoutedRpc.RoutedRPCData data)
     {
-        Index.Clear();
-        IndexedKeys.Clear();
-        DefaultHealthByPrefab.Clear();
-        _lastCheck = -1f;
-        _nextRetry = 0f;
+        if (data.m_methodHash != DestroyMethod || !data.m_targetZDO.IsNone()
+            || PatchGuard.IsDisabled(Feature) || !Active) return true;
+        try
+        {
+            data.m_parameters.SetPos(0);
+            ZPackage list = data.m_parameters.ReadPackage();
+            data.m_parameters.SetPos(0);
+            Kept.Clear();
+            Destroyed.Clear();
+            int count = list.ReadInt();
+            for (int i = 0; i < count; i++)
+            {
+                ZDOID id = list.ReadZDOID();
+                if (SpawnerData.IsProtected(ZDOMan.instance.GetZDO(id))) Kept.Add(id);
+                else Destroyed.Add(id);
+            }
+            if (Kept.Count == 0) return true;
+
+            foreach (ZDOID id in Kept) Restore(ZDOMan.instance.GetZDO(id));
+            Plugin.ModLogger.LogInfo($"Refused to destroy {Kept.Count} protected spawner(s), from player {data.m_senderPeerID}.");
+            if (Destroyed.Count == 0) return false;
+
+            ZPackage rest = new();
+            rest.Write(Destroyed.Count);
+            foreach (ZDOID id in Destroyed) rest.Write(id);
+            ZPackage parameters = new();
+            parameters.Write(rest);
+            parameters.SetPos(0);
+            data.m_parameters = parameters;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            PatchGuard.Fail(Feature, exception);
+            data.m_parameters.SetPos(0);
+            return true;
+        }
+        finally
+        {
+            Kept.Clear();
+            Destroyed.Clear();
+        }
     }
 
     private static void Run()
@@ -64,72 +102,30 @@ internal static class ServerGuard
         catch (Exception exception) { PatchGuard.Fail(Feature, exception); }
     }
 
+    // The protected spawners are the ones the server's list found in the world (see ProtectedSpawners).
     private static void Check()
     {
-        bool rebuild = false;
-        foreach (SpawnerRecord record in ProtectionStore.Current.Protected)
+        foreach (ZDOID id in ProtectedSpawners.TrackedIds)
         {
-            // A newly protected spawner is looked up at once; one that wasn't found only now and then.
-            if (Index.ContainsKey(record.Key)) continue;
-            if (!IndexedKeys.Contains(record.Key) || Time.time >= _nextRetry) rebuild = true;
-        }
-        if (rebuild) RebuildIndex();
-
-        foreach (SpawnerRecord record in ProtectionStore.Current.Protected)
-        {
-            if (!Index.TryGetValue(record.Key, out ZDOID id)) continue;
             ZDO zdo = ZDOMan.instance.GetZDO(id);
-            if (zdo == null)
-            {
-                Index.Remove(record.Key);
-                continue;
-            }
-
-            float normal = DefaultHealth(zdo.GetPrefab());
-            float target = Mathf.Max(BoostedHealth.Value, normal);
-            if (target <= 0f || zdo.GetFloat(ZDOVars.s_health, normal) >= target) continue;
+            if (zdo == null || !SpawnerData.IsProtected(zdo)) continue;
+            float target = TargetHealth(zdo);
+            if (target <= 0f || zdo.GetFloat(ZDOVars.s_health, SpawnerRegistry.DefaultHealth(zdo.GetPrefab())) >= target) continue;
             zdo.Set(ZDOVars.s_health, target);
-            zdo.DataRevision += RevisionLead;
+            SpawnerData.Written(zdo);
         }
     }
 
-    // Finds the world objects of all protected spawners. Object ids change every time a world loads, so they are
-    // found by prefab and position, the same way spawners are keyed.
-    private static void RebuildIndex()
+    // At least Boosted Health (never lowered), and a copy clearly newer than any player's, so the server sends it
+    // again to everyone near, the player whose game just destroyed it included.
+    private static void Restore(ZDO zdo)
     {
-        _nextRetry = Time.time + MissingRetry;
-        Index.Clear();
-        IndexedKeys.Clear();
-        Wanted.Clear();
-        foreach (SpawnerRecord record in ProtectionStore.Current.Protected)
-        {
-            IndexedKeys.Add(record.Key);
-            if (!SpawnerKey.TryParse(record.Key, out string prefab, out _, out _, out _)) continue;
-            int hash = prefab.GetStableHashCode();
-            if (!Wanted.TryGetValue(hash, out List<string> keys)) Wanted[hash] = keys = [];
-            keys.Add(record.Key);
-        }
-        if (Wanted.Count == 0) return;
-
-        foreach (ZDO zdo in ZDOMan.instance.m_objectsByID.Values)
-        {
-            if (!Wanted.TryGetValue(zdo.GetPrefab(), out List<string> keys)) continue;
-            Vector3 position = zdo.GetPosition();
-            foreach (string key in keys)
-            {
-                SpawnerKey.TryParse(key, out string prefab, out _, out _, out _);
-                if (SpawnerKey.For(prefab, position.x, position.y, position.z) == key) Index[key] = zdo.m_uid;
-            }
-        }
+        float target = TargetHealth(zdo);
+        float health = zdo.GetFloat(ZDOVars.s_health, SpawnerRegistry.DefaultHealth(zdo.GetPrefab()));
+        if (target > 0f && health < target) zdo.Set(ZDOVars.s_health, target);
+        zdo.DataRevision += SpawnerData.ServerRevisionLead;
     }
 
-    private static float DefaultHealth(int prefabHash)
-    {
-        if (DefaultHealthByPrefab.TryGetValue(prefabHash, out float health)) return health;
-        GameObject prefab = ZNetScene.instance.GetPrefab(prefabHash);
-        Destructible? destructible = prefab ? prefab.GetComponent<Destructible>() : null;
-        health = destructible ? SpawnerRegistry.DefaultHealth(destructible!) : 0f;
-        DefaultHealthByPrefab[prefabHash] = health;
-        return health;
-    }
+    private static float TargetHealth(ZDO zdo) =>
+        Mathf.Max(BoostedHealth.Value, SpawnerRegistry.DefaultHealth(zdo.GetPrefab()));
 }

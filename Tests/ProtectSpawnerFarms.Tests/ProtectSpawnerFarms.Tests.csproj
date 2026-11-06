@@ -23,5 +23,9 @@
     <Reference Include="ProtectSpawnerFarms">
       <HintPath>$(ProtectSpawnerFarmsAssembly)</HintPath>
     </Reference>
+    <!-- Color (the inventory buttons' icon previews). -->
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(CorlibPath)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

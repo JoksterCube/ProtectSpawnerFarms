@@ -21,14 +21,14 @@ internal static class SpawnerPatches
         }
     }
 
-    // Your own hits (and those of creatures your game controls) on a protected spawner near you are never sent.
+    // Your own hits (and those of creatures your game controls) on a protected spawner are never sent.
     [HarmonyPatch(typeof(Destructible), nameof(Destructible.Damage))]
     private static class BlockOutgoingHit
     {
         private static bool Prefix(Destructible __instance, HitData hit) => !Blocks(__instance, hit);
     }
 
-    // Hits from anyone else are worked out by the spawner's owner; this game owns protected spawners near you.
+    // Hits from anyone else are worked out by the spawner's owner; this game owns the protected spawners it has loaded.
     [HarmonyPatch(typeof(Destructible), nameof(Destructible.RPC_Damage))]
     private static class BlockIncomingHit
     {

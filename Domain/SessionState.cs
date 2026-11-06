@@ -16,7 +16,7 @@ internal static class SessionState
         ServerGuard.ClearSession();
         SpawnerProtection.ClearSession();
         ProtectionSync.ClearSession();
-        ProtectionStore.ClearSession();
+        ProtectedSpawners.ClearSession();
         // The next server is checked again: a modded server must not carry over to an unmodded one.
         RpcHandlers.ResetServerVersionCheck();
     }

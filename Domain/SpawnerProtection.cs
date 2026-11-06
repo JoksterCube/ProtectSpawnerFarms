@@ -10,9 +10,10 @@ namespace JoksterCube.ProtectSpawnerFarms.Domain;
 
 // Keeps protected spawners safe on this game:
 // - Their health is raised (Boosted Health) by whoever owns them, so players without the mod can't destroy one by accident.
-// - While you are near (Protection Range), every hit on them is blocked. Hits are worked out by the spawner's owner,
-//   so this game takes ownership of a protected spawner while you are near it, unless the server already keeps it
-//   safe by itself (Server Protection, see ServerGuard).
+// - Every hit on them is blocked, wherever you are. Hits are worked out by the spawner's owner, so this game takes
+//   ownership of every protected spawner it has loaded, unless the server already keeps it safe by itself
+//   (Server Protection, see ServerGuard).
+// - Being near one (Protection Range) only shows the status and notes that you guarded it.
 internal static class SpawnerProtection
 {
     private const string Feature = "Spawner protection";
@@ -35,14 +36,13 @@ internal static class SpawnerProtection
     internal static bool TryBlockDamage(Destructible destructible)
     {
         if (!SpawnerRegistry.TryGet(destructible, out Spawner spawner)
-            || !ProtectionStore.IsProtected(spawner.Key)
-            || !IsNearLocalPlayer(spawner)) return false;
+            || !SpawnerData.IsProtected(spawner.View.GetZDO())) return false;
 
         float now = Time.time;
         if (now >= spawner.NextBlockNote)
         {
             spawner.NextBlockNote = now + BlockNoteInterval;
-            ProtectionSync.Touch(spawner.Key, TouchKind.Blocked);
+            ProtectionSync.Touch(spawner, TouchKind.Blocked);
         }
         return true;
     }
@@ -57,10 +57,9 @@ internal static class SpawnerProtection
             SpawnerHighlight.Update();
             Compendium.Update();
             float now = Time.time;
-            ProtectionSync.Update(now);
-            if (now < _nextTick && ProtectionStore.Revision == _seenRevision) return;
+            if (now < _nextTick && ProtectedSpawners.Revision == _seenRevision) return;
             _nextTick = now + TickInterval;
-            _seenRevision = ProtectionStore.Revision;
+            _seenRevision = ProtectedSpawners.Revision;
             Tick(now);
         }
         catch (Exception exception) { PatchGuard.Fail(Feature, exception); }
@@ -69,22 +68,19 @@ internal static class SpawnerProtection
     // Protects the spawner if it isn't, or removes protection if it is.
     internal static void Toggle(Spawner spawner)
     {
-        bool protect = !ProtectionStore.IsProtected(spawner.Key);
-        if (!ProtectionSync.RequestSet(spawner.Key, protect)) return;
+        ZDO zdo = spawner.View.GetZDO();
+        bool protect = !SpawnerData.IsProtected(zdo);
+        if (!ProtectionSync.RequestSet(spawner, protect)) return;
         if (protect) spawner.NextGuardNote = 0f;
 
-        // Health follows right away; if the server refuses, the next check puts it back.
-        if (!protect) RestoreHealth(spawner);
-        else if (spawner.View.IsOwner() || TryClaim(spawner, Time.time)) RaiseHealth(spawner);
-
-        string message = string.Format(protect ? Messages.Protected : Messages.Unprotected, spawner.Name);
-        message += ProtectionStore.Mode switch
+        // Health follows right away on the spawner's owner. A server with the mod sets it itself once it accepts the
+        // change, so a refused change never leaves an unprotected spawner with raised health.
+        if (ProtectedSpawners.Mode != ShareMode.Server && spawner.View.IsOwner())
         {
-            ShareMode.Server => Messages.SharedSuffix,
-            ShareMode.Players => Messages.SharedWithPlayersSuffix,
-            _ => string.Empty
-        };
-        PlayerMessages.Center(message);
+            if (protect) RaiseHealth(zdo);
+            else RestoreHealth(zdo);
+        }
+        PlayerMessages.Center(string.Format(protect ? Messages.Protected : Messages.Unprotected, spawner.Name));
     }
 
     private static void Tick(float now)
@@ -92,30 +88,34 @@ internal static class SpawnerProtection
         SpawnerRegistry.Prune();
         Player player = Player.m_localPlayer;
         bool near = false;
-        bool serverProtects = ProtectionStore.ServerProtects;
+        bool serverProtects = ProtectedSpawners.ServerProtects;
+        // A server with the mod sends the Compendium list; otherwise it is what this game sees on loaded spawners.
+        bool noteLoaded = ProtectedSpawners.Mode != ShareMode.Server;
 
         foreach (Spawner spawner in SpawnerRegistry.All)
         {
-            bool isProtected = ProtectionStore.IsProtected(spawner.Key);
+            ZDO zdo = spawner.View.GetZDO();
+            if (noteLoaded) ProtectedSpawners.Note(zdo, spawner.Key);
+            bool isProtected = SpawnerData.IsProtected(zdo);
             ProtectedMarker.Update(spawner, isProtected);
             if (!isProtected) continue;
 
-            if (spawner.View.IsOwner()) RaiseHealth(spawner);
+            if (spawner.View.IsOwner()) RaiseHealth(zdo);
+            else if (!serverProtects) KeepOwnership(spawner, now);
             if (!player || !IsNearLocalPlayer(spawner)) continue;
 
             near = true;
-            if (!serverProtects && !spawner.View.IsOwner()) KeepOwnership(spawner, now);
             if (now >= spawner.NextGuardNote)
             {
                 spawner.NextGuardNote = now + GuardNoteInterval;
-                ProtectionSync.Touch(spawner.Key, TouchKind.Guarded);
+                ProtectionSync.Touch(spawner, TouchKind.Guarded);
             }
         }
 
         ProtectingStatus.Set(player, near && ShowProtectingStatus.IsOn(), serverProtects);
     }
 
-    // Takes ownership so this game decides about every hit. When two protecting players are near, the one that
+    // Takes ownership so this game decides about every hit. When two players with the mod have it loaded, the one that
     // claimed last keeps it and the other stops claiming, instead of both taking it back and forth.
     private static void KeepOwnership(Spawner spawner, float now)
     {
@@ -129,31 +129,26 @@ internal static class SpawnerProtection
             return;
         }
 
-        if (TryClaim(spawner, now)) RaiseHealth(spawner);
-    }
-
-    private static bool TryClaim(Spawner spawner, float now)
-    {
         spawner.View.ClaimOwnership();
         spawner.ClaimedAt = now;
-        return spawner.View.IsOwner();
+        if (spawner.View.IsOwner()) RaiseHealth(spawner.View.GetZDO());
     }
 
-    private static void RaiseHealth(Spawner spawner)
+    // Written by the spawner's owner, or by the server (see SpawnerData).
+    internal static void RaiseHealth(ZDO zdo)
     {
         float boosted = BoostedHealth.Value;
-        if (boosted <= 0f) return;
-        ZDO zdo = spawner.View.GetZDO();
-        float health = zdo.GetFloat(ZDOVars.s_health, SpawnerRegistry.DefaultHealth(spawner.Destructible));
-        if (health < boosted) zdo.Set(ZDOVars.s_health, boosted);
+        if (boosted <= 0f || zdo.GetFloat(ZDOVars.s_health, SpawnerRegistry.DefaultHealth(zdo.GetPrefab())) >= boosted) return;
+        zdo.Set(ZDOVars.s_health, boosted);
+        SpawnerData.Written(zdo);
     }
 
-    private static void RestoreHealth(Spawner spawner)
+    internal static void RestoreHealth(ZDO zdo)
     {
-        if (!spawner.View.IsOwner() && !TryClaim(spawner, Time.time)) return;
-        ZDO zdo = spawner.View.GetZDO();
-        float normal = SpawnerRegistry.DefaultHealth(spawner.Destructible);
-        if (zdo.GetFloat(ZDOVars.s_health, normal) > normal) zdo.Set(ZDOVars.s_health, normal);
+        float normal = SpawnerRegistry.DefaultHealth(zdo.GetPrefab());
+        if (normal <= 0f || zdo.GetFloat(ZDOVars.s_health, normal) <= normal) return;
+        zdo.Set(ZDOVars.s_health, normal);
+        SpawnerData.Written(zdo);
     }
 
     internal static void ClearSession()

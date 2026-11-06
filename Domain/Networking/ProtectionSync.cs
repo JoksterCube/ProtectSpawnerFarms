@@ -1,20 +1,28 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using JoksterCube.ProtectSpawnerFarms.Common;
 using JoksterCube.ProtectSpawnerFarms.Common.Networking;
 using JoksterCube.ProtectSpawnerFarms.Settings;
+using UnityEngine;
 using static JoksterCube.ProtectSpawnerFarms.Settings.Constants;
+using Spawner = JoksterCube.ProtectSpawnerFarms.Domain.SpawnerRegistry.Spawner;
 
 namespace JoksterCube.ProtectSpawnerFarms.Domain.Networking;
 
-// Shares protection records between everyone with the mod.
-// - Server with the mod: it keeps the list. Players send it their changes; it sends everyone the list and each
-//   change. Only players whose version matched the server's take part.
-// - Server without the mod: players with the mod send each other their lists through the server, which only
-//   passes the messages on. Lists are merged so the newest change of each spawner wins. Messages carry the mod
-//   version, and players with another version ignore them. Players without the mod never react to them.
+// Protection is saved on each spawner (see SpawnerData), so players never send each other spawner data: whoever
+// loads a spawner reads it. This only decides who writes, and shares the Compendium list:
+// - Server with the mod: players ask it to protect, unprotect and note guarded or blocked hits, and the server
+//   writes the spawner. It also sends players with the mod the list of every protected spawner in the world, and
+//   each change to it. Only players whose version matched the server's take part.
+// - Server without the mod (and single player or hosting): this game writes the spawner itself, taking ownership
+//   of it first, the way the game does for anything a player changes.
 internal static class ProtectionSync
 {
+    private const string Feature = "Protection sync";
     private const float ListRequestRetry = 10f;
+    // How often the known protected spawners are read again for the Compendium.
+    private const float RefreshInterval = 2f;
 
     private enum ServerMessage
     {
@@ -22,17 +30,8 @@ internal static class ProtectionSync
         Update = 1
     }
 
-    private enum PlayerMessage
-    {
-        // Sent on joining: here is my list, please send me yours.
-        Hello = 0,
-        // The answer to Hello.
-        Reply = 1,
-        Update = 2
-    }
-
     private static float _nextListRequest;
-    private static bool _helloSent;
+    private static float _nextRefresh;
 
     internal static void Register(ZRoutedRpc rpc)
     {
@@ -41,67 +40,98 @@ internal static class ProtectionSync
         rpc.Register<ZPackage>(Rpcs.Touch, RPC_Touch);
         rpc.Register<ZPackage>(Rpcs.ProtectedList, RPC_ProtectedList);
         rpc.Register<ZPackage>(Rpcs.Refused, RPC_Refused);
-        rpc.Register<ZPackage>(Rpcs.PlayerRecords, RPC_PlayerRecords);
     }
 
     internal static void ClearSession()
     {
         _nextListRequest = 0f;
-        _helloSent = false;
+        _nextRefresh = 0f;
     }
 
-    internal static void Update(float now)
+    // Every frame, on servers and players.
+    internal static void Update()
     {
-        if (ZRoutedRpc.instance == null || !Player.m_localPlayer) return;
-        switch (ProtectionStore.Mode)
+        if (PatchGuard.IsDisabled(Feature) || ZRoutedRpc.instance == null) return;
+        try
         {
-            case ShareMode.Server when !ProtectionStore.SharedListReceived && now >= _nextListRequest:
-                _nextListRequest = now + ListRequestRetry;
-                ZRoutedRpc.instance.InvokeRoutedRPC(Rpcs.RequestList, new ZPackage());
-                break;
-            case ShareMode.Players when !_helloSent:
-                _helloSent = true;
-                SendToPlayers(ZRoutedRpc.Everybody, PlayerMessage.Hello, ProtectionStore.LocalLines());
-                break;
+            float now = Time.time;
+            switch (ProtectedSpawners.Mode)
+            {
+                case ShareMode.Server when !ProtectedSpawners.ListReceived && Player.m_localPlayer && now >= _nextListRequest:
+                    _nextListRequest = now + ListRequestRetry;
+                    ZRoutedRpc.instance.InvokeRoutedRPC(Rpcs.RequestList, new ZPackage());
+                    break;
+                case ShareMode.Host or ShareMode.Players when now >= _nextRefresh:
+                    _nextRefresh = now + RefreshInterval;
+                    Shared(ProtectedSpawners.Refresh());
+                    break;
+            }
         }
+        catch (Exception exception) { PatchGuard.Fail(Feature, exception); }
     }
 
-    // Protects or unprotects a spawner, on whichever list this game uses.
-    // Returns false when this game already knows the change isn't allowed (and says why). On a server with the mod
-    // the server decides, and tells the player if it refuses.
-    internal static bool RequestSet(string key, bool isProtected)
+    // Protects or unprotects a spawner. Returns false when this game already knows the change isn't allowed (and
+    // says why). On a server with the mod the server decides, and tells the player if it refuses.
+    internal static bool RequestSet(Spawner spawner, bool protect)
     {
-        if (ProtectionStore.Mode == ShareMode.Server)
+        ZDO zdo = spawner.View.GetZDO();
+        if (ProtectedSpawners.Mode == ShareMode.Server)
         {
+            // The server's setting is synced here, so an obvious refusal is shown at once instead of after a
+            // "now protected" message. The server still decides.
+            if (PluginConfig.WhoCanChange.Value == ProtectionPermission.AdminsOnly && !ZNet.instance.LocalPlayerIsAdminOrHost())
+            {
+                ShowRefusal(ProtectionPermissions.Verdict.AdminsOnly, string.Empty);
+                return false;
+            }
             ZPackage package = new();
-            package.Write(key);
-            package.Write(isProtected);
+            package.Write(zdo.m_uid);
+            package.Write(protect);
             ZRoutedRpc.instance.InvokeRoutedRPC(Rpcs.SetProtected, package);
             return true;
         }
 
-        string me = ProtectionStore.LocalPlayerName;
-        string myId = ProtectionStore.LocalPlayerId;
+        string myId = ProtectedSpawners.LocalPlayerId;
         bool isAdmin = ZNet.instance && ZNet.instance.LocalPlayerIsAdminOrHost();
-        ProtectionPermissions.Verdict verdict = Check(key, isProtected, myId, isAdmin, out string protector);
+        ProtectionPermissions.Verdict verdict = Check(zdo, protect, myId, isAdmin, out string protector);
         if (verdict != ProtectionPermissions.Verdict.Allowed)
         {
             ShowRefusal(verdict, protector);
             return false;
         }
-        Shared(ProtectionStore.SetLocal(key, isProtected, me, myId));
+
+        if (!spawner.View.IsOwner())
+        {
+            spawner.View.ClaimOwnership();
+            spawner.ClaimedAt = Time.time;
+        }
+        SpawnerData.SetProtected(zdo, protect, ProtectedSpawners.LocalPlayerName, myId, ProtectedSpawners.Now);
+        Shared(ProtectedSpawners.Note(zdo, spawner.Key));
         return true;
     }
 
-    private static ProtectionPermissions.Verdict Check(string key, bool protect, string requesterId, bool isAdmin, out string protector)
+    // Notes that this game guarded a protected spawner or blocked a hit on it. Without the mod on the server only
+    // the spawner's owner writes it; a protecting player owns the spawners it guards.
+    internal static void Touch(Spawner spawner, TouchKind kind)
     {
-        protector = string.Empty;
-        string protectorId = string.Empty;
-        if (ProtectionStore.Current.TryGet(key, out SpawnerRecord record) && record.IsProtected)
+        ZDO zdo = spawner.View.GetZDO();
+        if (ProtectedSpawners.Mode == ShareMode.Server)
         {
-            protector = record.ProtectedBy;
-            protectorId = record.ProtectedById;
+            ZPackage package = new();
+            package.Write(zdo.m_uid);
+            package.Write((int)kind);
+            ZRoutedRpc.instance.InvokeRoutedRPC(Rpcs.Touch, package);
+            return;
         }
+        if (SpawnerData.CanWrite(zdo) && SpawnerData.Touch(zdo, kind, ProtectedSpawners.LocalPlayerName, ProtectedSpawners.Now))
+            Shared(ProtectedSpawners.Note(zdo, spawner.Key));
+    }
+
+    private static ProtectionPermissions.Verdict Check(ZDO zdo, bool protect, string requesterId, bool isAdmin, out string protector)
+    {
+        bool isProtected = SpawnerData.IsProtected(zdo);
+        protector = isProtected ? SpawnerData.ProtectedBy(zdo) : string.Empty;
+        string protectorId = isProtected ? SpawnerData.ProtectedById(zdo) : string.Empty;
         return ProtectionPermissions.Check(PluginConfig.WhoCanChange.Value, protect, protectorId, requesterId, isAdmin);
     }
 
@@ -110,30 +140,19 @@ internal static class ProtectionSync
             ? string.Format(Messages.RefusedProtectorOnly, string.IsNullOrEmpty(protector) ? Messages.CompendiumUnknownPlayer : protector)
             : Messages.RefusedAdminsOnly);
 
-    // Notes that this game guarded a protected spawner or blocked a hit on it.
-    internal static void Touch(string key, TouchKind kind)
+    // Sends changes to the list to players with the mod, when this game is the server.
+    private static void Shared(SpawnerRecord? change)
     {
-        switch (ProtectionStore.Mode)
-        {
-            case ShareMode.Server:
-                ZPackage package = new();
-                package.Write(key);
-                package.Write((int)kind);
-                ZRoutedRpc.instance.InvokeRoutedRPC(Rpcs.Touch, package);
-                break;
-            default:
-                Shared(ProtectionStore.TouchLocal(key, kind, ProtectionStore.LocalPlayerName));
-                break;
-        }
+        if (change != null) Shared([change]);
     }
 
-    // Passes on a change made to this game's own list.
-    private static void Shared(SpawnerRecord? changed)
+    private static void Shared(List<SpawnerRecord> changes)
     {
-        if (changed == null || ZRoutedRpc.instance == null) return;
-        List<string> lines = [SpawnerRecords.Format(changed)];
-        if (ProtectionStore.Mode == ShareMode.Host) SendToValidatedPeers(ServerMessage.Update, lines);
-        else if (ProtectionStore.Mode == ShareMode.Players) SendToPlayers(ZRoutedRpc.Everybody, PlayerMessage.Update, lines);
+        if (changes.Count == 0 || ProtectedSpawners.Mode != ShareMode.Host || ZRoutedRpc.instance == null) return;
+        ZPackage package = ServerPackage(ServerMessage.Update, changes);
+        foreach (ZNetPeer peer in ZNet.instance.GetPeers())
+            if (peer.m_uid != 0 && RpcHandlers.ValidatedPeers.Contains(peer.m_rpc))
+                ZRoutedRpc.instance.InvokeRoutedRPC(peer.m_uid, Rpcs.ProtectedList, package);
     }
 
     // ---- Server with the mod ----
@@ -141,17 +160,18 @@ internal static class ProtectionSync
     private static void RPC_RequestList(long sender, ZPackage _)
     {
         if (!IsServer() || !IsValidatedPeer(sender, out ZNetPeer? _)) return;
-        ZRoutedRpc.instance.InvokeRoutedRPC(sender, Rpcs.ProtectedList, ServerPackage(ServerMessage.FullList, ProtectionStore.LocalLines()));
+        ZRoutedRpc.instance.InvokeRoutedRPC(sender, Rpcs.ProtectedList, ServerPackage(ServerMessage.FullList, ProtectedSpawners.All.ToList()));
     }
 
     private static void RPC_SetProtected(long sender, ZPackage package)
     {
         if (!IsServer() || !IsValidatedPeer(sender, out ZNetPeer? peer)) return;
-        string key = package.ReadString();
-        bool isProtected = package.ReadBool();
+        ZDO? zdo = ZDOMan.instance.GetZDO(package.ReadZDOID());
+        bool protect = package.ReadBool();
+        if (zdo == null || SpawnerRegistry.KeyOf(zdo) is not { } key || SpawnerData.IsProtected(zdo) == protect) return;
 
         string peerId = peer!.m_rpc.GetPeerHostName();
-        ProtectionPermissions.Verdict verdict = Check(key, isProtected, peerId, IsAdmin(peer), out string protector);
+        ProtectionPermissions.Verdict verdict = Check(zdo, protect, RequesterId(peer, zdo), IsAdmin(peer), out string protector);
         if (verdict != ProtectionPermissions.Verdict.Allowed)
         {
             Plugin.ModLogger.LogInfo($"Refused a protection change from {peer.m_playerName} ({verdict}).");
@@ -162,25 +182,43 @@ internal static class ProtectionSync
             return;
         }
 
-        SpawnerRecord? changed = ProtectionStore.SetLocal(key, isProtected, peer.m_playerName, peerId);
-        if (changed == null) return;
-        Plugin.ModLogger.LogInfo($"{peer.m_playerName} {(isProtected ? "protected" : "unprotected")} {key}.");
-        Shared(changed);
+        SpawnerData.SetProtected(zdo, protect, peer.m_playerName, peerId, ProtectedSpawners.Now);
+        // The server sets the health too: its copy wins over the player's (see SpawnerData).
+        if (protect) SpawnerProtection.RaiseHealth(zdo);
+        else SpawnerProtection.RestoreHealth(zdo);
+        Plugin.ModLogger.LogInfo($"{peer.m_playerName} {(protect ? "protected" : "unprotected")} {key}.");
+        Shared(ProtectedSpawners.Note(zdo, key));
     }
 
     private static void RPC_Touch(long sender, ZPackage package)
     {
         if (!IsServer() || !IsValidatedPeer(sender, out ZNetPeer? peer)) return;
-        string key = package.ReadString();
+        ZDO? zdo = ZDOMan.instance.GetZDO(package.ReadZDOID());
         TouchKind kind = (TouchKind)package.ReadInt();
-        Shared(ProtectionStore.TouchLocal(key, kind, peer!.m_playerName));
+        if (zdo == null || SpawnerRegistry.KeyOf(zdo) is not { } key) return;
+        if (SpawnerData.Touch(zdo, kind, peer!.m_playerName, ProtectedSpawners.Now))
+            Shared(ProtectedSpawners.Note(zdo, key));
     }
+
+    // Players keep their platform id here, but a spawner protected on a server without the mod has the character's
+    // id; either one counts as the protector.
+    private static string RequesterId(ZNetPeer peer, ZDO spawner)
+    {
+        string protectorId = SpawnerData.ProtectedById(spawner);
+        ZDO? character = ZDOMan.instance.GetZDO(peer.m_characterID);
+        long characterId = character != null ? character.GetLong(ZDOVars.s_playerID) : 0L;
+        return characterId != 0L && protectorId == characterId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ? protectorId
+            : peer.m_rpc.GetPeerHostName();
+    }
+
+    // ---- Players on a server with the mod ----
 
     private static void RPC_ProtectedList(long sender, ZPackage package)
     {
         if (!ZNet.instance || ZNet.instance.IsServer() || sender != ZRoutedRpc.instance.GetServerPeerID()) return;
         ServerMessage kind = (ServerMessage)package.ReadInt();
-        ProtectionStore.ReceiveShared(ReadRecords(package), kind == ServerMessage.FullList);
+        ProtectedSpawners.Receive(ReadRecords(package), kind == ServerMessage.FullList);
     }
 
     private static void RPC_Refused(long sender, ZPackage package)
@@ -189,55 +227,15 @@ internal static class ProtectionSync
         ShowRefusal((ProtectionPermissions.Verdict)package.ReadInt(), package.ReadString());
     }
 
-    private static void SendToValidatedPeers(ServerMessage kind, List<string> lines)
-    {
-        ZPackage package = ServerPackage(kind, lines);
-        foreach (ZNetPeer peer in ZNet.instance.GetPeers())
-            if (peer.m_uid != 0 && RpcHandlers.ValidatedPeers.Contains(peer.m_rpc))
-                ZRoutedRpc.instance.InvokeRoutedRPC(peer.m_uid, Rpcs.ProtectedList, package);
-    }
-
-    private static ZPackage ServerPackage(ServerMessage kind, List<string> lines)
-    {
-        ZPackage package = new();
-        package.Write((int)kind);
-        WriteLines(package, lines);
-        return package;
-    }
-
-    // ---- Server without the mod: players share with each other ----
-
-    private static void RPC_PlayerRecords(long sender, ZPackage package)
-    {
-        if (ProtectionStore.Mode != ShareMode.Players || sender == ZRoutedRpc.instance.m_id) return;
-        // Another version may store or mean things differently.
-        if (package.ReadString() != Constants.Plugin.ModVersion) return;
-        PlayerMessage kind = (PlayerMessage)package.ReadInt();
-
-        List<SpawnerRecord> changed = ProtectionStore.MergeLocal(ReadRecords(package));
-        if (changed.Count > 0)
-            Plugin.ModLogger.LogInfo($"Merged {changed.Count} spawner protection changes from another player.");
-
-        if (kind == PlayerMessage.Hello)
-            SendToPlayers(sender, PlayerMessage.Reply, ProtectionStore.LocalLines());
-    }
-
-    private static void SendToPlayers(long target, PlayerMessage kind, List<string> lines)
-    {
-        if (kind == PlayerMessage.Reply && lines.Count == 0) return;
-        ZPackage package = new();
-        package.Write(Constants.Plugin.ModVersion);
-        package.Write((int)kind);
-        WriteLines(package, lines);
-        ZRoutedRpc.instance.InvokeRoutedRPC(target, Rpcs.PlayerRecords, package);
-    }
-
     // ---- Shared helpers ----
 
-    private static void WriteLines(ZPackage package, List<string> lines)
+    private static ZPackage ServerPackage(ServerMessage kind, List<SpawnerRecord> records)
     {
-        package.Write(lines.Count);
-        foreach (string line in lines) package.Write(line);
+        ZPackage package = new();
+        package.Write((int)kind);
+        package.Write(records.Count);
+        foreach (SpawnerRecord record in records) package.Write(SpawnerRecords.Format(record));
+        return package;
     }
 
     private static List<SpawnerRecord> ReadRecords(ZPackage package)

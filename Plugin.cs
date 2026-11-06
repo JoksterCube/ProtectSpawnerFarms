@@ -6,6 +6,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 using JoksterCube.ProtectSpawnerFarms.Domain;
+using JoksterCube.ProtectSpawnerFarms.Domain.Networking;
 using JoksterCube.ProtectSpawnerFarms.Settings;
 using ServerSync;
 using static JoksterCube.ProtectSpawnerFarms.Settings.Constants;
@@ -20,7 +21,7 @@ public class Plugin : BaseUnityPlugin
     internal static string ConnectionError = string.Empty;
 
     // ModRequired stays false: players without the mod may join a modded server, and a modded player
-    // may join an unmodded server (local settings and a local protected list apply). When both have it,
+    // may join an unmodded server (local settings apply; protection is read from the spawners). When both have it,
     // versions must match exactly.
     // Always locked: synced settings come only from the server's config file (see EnforceServerConfigPatch).
     internal static readonly ConfigSync ServerConfigSync = new(ModGUID)
@@ -61,6 +62,7 @@ public class Plugin : BaseUnityPlugin
             ReloadConfigIfChanged();
         }
         ServerGuard.Update();
+        ProtectionSync.Update();
         SpawnerProtection.Update();
     }
 

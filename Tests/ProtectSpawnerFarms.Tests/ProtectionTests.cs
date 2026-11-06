@@ -31,7 +31,9 @@ public class SpawnerRecordsTests
 {
     private const string Nest = "Spawner_GreydwarfNest@1.0,2.0,3.0";
     private const string Pile = "BonePileSpawner@4.0,5.0,6.0";
-    private static readonly long Day = TimeSpan.FromDays(1).Ticks;
+
+    private static SpawnerRecord Protected(string key, string by = "A") =>
+        new(key) { ProtectedBy = by, ProtectedById = "id-" + by, ProtectedAt = 100 };
 
     [Fact]
     public void Parses_key_parts()
@@ -41,118 +43,76 @@ public class SpawnerRecordsTests
     }
 
     [Fact]
-    public void Protecting_records_who_and_when()
+    public void Lists_protected_spawners()
     {
         SpawnerRecords records = new();
-        SpawnerRecord? record = records.SetProtected(Nest, true, "Testeroo", "id-" + "Testeroo", 100, 100);
-        Assert.NotNull(record);
-        Assert.Equal("Testeroo", record!.ProtectedBy);
-        Assert.Equal(100, record.ProtectedAt);
-        Assert.True(records.IsProtected(Nest));
+        Assert.True(records.Set(Protected(Nest)));
+        Assert.True(records.Set(Protected(Pile)));
+        Assert.Equal(2, records.Count);
+        Assert.True(records.TryGet(Nest, out SpawnerRecord record));
+        Assert.Equal("A", record.ProtectedBy);
     }
 
     [Fact]
     public void Reports_changes_only_when_something_changed()
     {
         SpawnerRecords records = new();
-        Assert.Null(records.SetProtected(Nest, false, "A", "id-" + "A", 1, 1));
-        Assert.NotNull(records.SetProtected(Nest, true, "A", "id-" + "A", 2, 2));
-        Assert.Null(records.SetProtected(Nest, true, "B", "id-" + "B", 3, 3));
-        Assert.NotNull(records.SetProtected(Nest, false, "B", "id-" + "B", 4, 4));
-        Assert.False(records.IsProtected(Nest));
+        Assert.True(records.Set(Protected(Nest)));
+        Assert.False(records.Set(Protected(Nest)));
+        SpawnerRecord guarded = Protected(Nest);
+        guarded.LastGuarded = 200;
+        guarded.GuardedBy = "B";
+        Assert.True(records.Set(guarded));
+    }
+
+    [Fact]
+    public void Unprotected_spawners_leave_the_list()
+    {
+        SpawnerRecords records = new();
+        records.Set(Protected(Nest));
+        Assert.True(records.Set(new SpawnerRecord(Nest) { IsProtected = false }));
+        Assert.False(records.TryGet(Nest, out _));
+        Assert.False(records.Set(new SpawnerRecord(Nest) { IsProtected = false }));
     }
 
     [Fact]
     public void Ignores_invalid_keys()
     {
         SpawnerRecords records = new();
-        Assert.Null(records.SetProtected("not a key", true, "A", "id-" + "A", 1, 1));
-        Assert.Equal(0, records.ProtectedCount);
+        Assert.False(records.Set(Protected("not a key")));
+        Assert.Equal(0, records.Count);
     }
 
     [Fact]
-    public void Newest_change_wins_when_merging()
+    public void Sends_and_reads_the_same()
     {
-        SpawnerRecords mine = new();
-        mine.SetProtected(Nest, true, "A", "id-" + "A", 10, 10);
-
-        SpawnerRecords theirs = new();
-        theirs.SetProtected(Nest, true, "B", "id-" + "B", 5, 5);
-        theirs.SetProtected(Nest, false, "B", "id-" + "B", 20, 20);
-        theirs.TryGet(Nest, out SpawnerRecord unprotected);
-
-        Assert.True(mine.Merge(unprotected));
-        Assert.False(mine.IsProtected(Nest));
-
-        SpawnerRecord older = new(Nest) { IsProtected = true, Changed = 15, ProtectedBy = "C" };
-        Assert.False(mine.Merge(older));
-        Assert.False(mine.IsProtected(Nest));
+        SpawnerRecord record = new(Nest)
+        {
+            ProtectedBy = "Testeroo", ProtectedById = "76561198042972958", ProtectedAt = 100,
+            GuardedBy = "Viking", LastGuarded = 200, LastBlocked = 300
+        };
+        SpawnerRecord? read = SpawnerRecords.Parse(SpawnerRecords.Format(record));
+        Assert.NotNull(read);
+        Assert.True(record.SameAs(read!));
     }
 
     [Fact]
-    public void Merging_keeps_the_latest_guarded_and_blocked_times()
+    public void Sends_and_reads_unprotected()
     {
-        SpawnerRecords records = new();
-        records.SetProtected(Nest, true, "A", "id-" + "A", 10, 10);
-        records.Touch(Nest, TouchKind.Guarded, "A", 50);
-
-        SpawnerRecord incoming = new(Nest) { IsProtected = true, Changed = 10, GuardedBy = "B", LastGuarded = 40, LastBlocked = 60 };
-        Assert.True(records.Merge(incoming));
-        records.TryGet(Nest, out SpawnerRecord record);
-        Assert.Equal((50L, "A", 60L), (record.LastGuarded, record.GuardedBy, record.LastBlocked));
+        SpawnerRecord? read = SpawnerRecords.Parse(SpawnerRecords.Format(new SpawnerRecord(Nest) { IsProtected = false }));
+        Assert.NotNull(read);
+        Assert.False(read!.IsProtected);
     }
+
+    [Theory]
+    [InlineData("garbage")]
+    [InlineData("Spawner_GreydwarfNest@1.0,2.0,3.0")]
+    [InlineData("not a key\t1\tA\tid\t1\t\t0\t0")]
+    public void Skips_bad_lines(string line) => Assert.Null(SpawnerRecords.Parse(line));
 
     [Fact]
-    public void Touches_only_protected_spawners()
-    {
-        SpawnerRecords records = new();
-        Assert.Null(records.Touch(Nest, TouchKind.Blocked, "A", 5));
-        records.SetProtected(Nest, true, "A", "id-" + "A", 1, 1);
-        Assert.NotNull(records.Touch(Nest, TouchKind.Blocked, "A", 5));
-        Assert.Null(records.Touch(Nest, TouchKind.Blocked, "A", 5));
-    }
-
-    [Fact]
-    public void Saves_and_loads_the_same()
-    {
-        SpawnerRecords records = new();
-        records.SetProtected(Nest, true, "Testeroo", "id-" + "Testeroo", 100, 100);
-        records.Touch(Nest, TouchKind.Guarded, "Viking", 200);
-        records.Touch(Nest, TouchKind.Blocked, "Viking", 300);
-        records.SetProtected(Pile, true, "A", "id-" + "A", 100, 100);
-
-        SpawnerRecords reloaded = new();
-        reloaded.Load(records.ToLines(), 400);
-        Assert.Equal(records.ToLines(), reloaded.ToLines());
-    }
-
-    [Fact]
-    public void Loads_old_key_only_lines_as_protected_and_skips_bad_lines()
-    {
-        SpawnerRecords records = new();
-        records.Load(["# header", "", "  " + Pile + "  ", "garbage"], 0);
-        Assert.Equal(1, records.ProtectedCount);
-        Assert.True(records.IsProtected(Pile));
-    }
-
-    [Fact]
-    public void Forgets_long_unprotected_spawners_on_load()
-    {
-        SpawnerRecords records = new();
-        records.SetProtected(Nest, true, "A", "id-" + "A", 1, 1);
-        records.SetProtected(Nest, false, "A", "id-" + "A", 2, 2);
-        SpawnerRecords reloaded = new();
-        reloaded.Load(records.ToLines(), 2 + 31 * Day);
-        Assert.False(reloaded.TryGet(Nest, out _));
-    }
-
-    [Fact]
-    public void Player_names_cannot_break_lines_or_text()
-    {
-        SpawnerRecords records = new();
-        SpawnerRecord record = records.SetProtected(Nest, true, "Bad\t<b>Name</b>\n", "id-" + "Bad\t<b>Name</b>\n", 1, 1)!;
-        Assert.Equal("BadbName/b", record.ProtectedBy);
-    }
+    public void Player_names_cannot_break_lines_or_text() =>
+        Assert.Equal("BadbName/b", SpawnerRecords.Clean("Bad\t<b>Name</b>\n"));
 }
 
 public class TimeAgoTests
@@ -180,43 +140,6 @@ public class TimeAgoTests
 
     [Fact]
     public void Future_times_are_just_now() => Assert.Equal("just now", Ago(TimeSpan.FromMinutes(-5)));
-}
-
-public class GameTimeAndProtectorTests
-{
-    private const string Nest = "Spawner_GreydwarfNest@1.0,2.0,3.0";
-
-    [Fact]
-    public void Keeps_the_protector_id_when_saved_and_loaded()
-    {
-        SpawnerRecords records = new();
-        records.SetProtected(Nest, true, "Testeroo", "76561198042972958", 50, 1000);
-        SpawnerRecords reloaded = new();
-        reloaded.Load(records.ToLines(), 1000);
-        reloaded.TryGet(Nest, out SpawnerRecord record);
-        Assert.Equal(("Testeroo", "76561198042972958", 50L, 1000L), (record.ProtectedBy, record.ProtectedById, record.Changed, record.ProtectedAt));
-    }
-
-    [Fact]
-    public void Change_order_uses_game_time_not_real_time()
-    {
-        SpawnerRecords mine = new();
-        // Protected at game time 100, on a computer whose clock is far ahead.
-        mine.SetProtected(Nest, true, "A", "a", 100, 900_000);
-        // Unprotected later in game time (200), by someone whose clock is behind.
-        SpawnerRecord unprotect = new(Nest) { IsProtected = false, Changed = 200, ProtectedAt = 10 };
-        Assert.True(mine.Merge(unprotect));
-        Assert.False(mine.IsProtected(Nest));
-    }
-
-    [Fact]
-    public void Real_world_change_times_from_early_builds_count_as_long_ago()
-    {
-        string old = Nest + "\t1\t639285484181286330\tA\t639285484181286330\t\t0\t0";
-        SpawnerRecord? record = SpawnerRecords.Parse(old);
-        Assert.NotNull(record);
-        Assert.Equal(0L, record!.Changed);
-    }
 }
 
 public class PermissionTests

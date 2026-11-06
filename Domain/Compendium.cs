@@ -47,7 +47,7 @@ internal static class Compendium
         text.Append("<color=#c8c8c8>").Append(SharingLine()).Append("</color>\n\n");
 
         Vector3? player = Player.m_localPlayer ? Player.m_localPlayer.transform.position : null;
-        var entries = ProtectionStore.Current.Protected
+        var entries = ProtectedSpawners.All
             .Select(record => SpawnerKey.TryParse(record.Key, out string prefab, out float x, out float y, out float z)
                 ? (Record: record, Prefab: prefab, Position: new Vector3(x, y, z))
                 : default)
@@ -230,10 +230,10 @@ internal static class Compendium
         _pending = null;
     }
 
-    private static string SharingLine() => ProtectionStore.Mode switch
+    private static string SharingLine() => ProtectedSpawners.Mode switch
     {
         ShareMode.Server => Messages.CompendiumSharedByServer,
-        ShareMode.Players => Messages.CompendiumSharedWithPlayers,
+        ShareMode.Players => Messages.CompendiumSeenNearby,
         ShareMode.Host when ZNet.instance && (ZNet.instance.IsDedicated() || ZNet.instance.GetPeers().Count > 0 || ZNet.m_openServer)
             => Messages.CompendiumHosted,
         _ => Messages.CompendiumLocal

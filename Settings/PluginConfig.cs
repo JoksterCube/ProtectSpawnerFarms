@@ -13,8 +13,6 @@ internal static class PluginConfig
     internal static ConfigEntry<float> BoostedHealth = null!;
     internal static ConfigEntry<float> ProtectionRange = null!;
     internal static ConfigEntry<ProtectionPermission> WhoCanChange = null!;
-    internal static ConfigEntry<Toggle> ServerProtection = null!;
-    internal static ConfigEntry<Toggle> ShareWithPlayers = null!;
 
     internal static ConfigEntry<float> ActionDistance = null!;
 
@@ -32,8 +30,6 @@ internal static class PluginConfig
         BoostedHealth = ConfigOptions.Config(Protection.BoostedHealth);
         ProtectionRange = ConfigOptions.Config(Protection.ProtectionRange);
         WhoCanChange = ConfigOptions.Config(Protection.WhoCanChange);
-        ServerProtection = ConfigOptions.Config(Protection.ServerProtection);
-        ShareWithPlayers = ConfigOptions.Config(Protection.ShareWithPlayers);
 
         ActionDistance = ConfigOptions.Config(Controls.ActionDistance);
 

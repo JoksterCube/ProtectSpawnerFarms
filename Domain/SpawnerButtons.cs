@@ -9,7 +9,7 @@ namespace JoksterCube.ProtectSpawnerFarms.Domain;
 
 // A small panel left of the player panel in the inventory screen, shown while a spawner is within Action Distance.
 // It slides out from behind the player panel and back. Its two buttons protect or unprotect the closest spawner,
-// and turn highlighting of the nearest spawner on or off. A red cross means a click turns that thing off.
+// and turn highlighting of the nearest spawner on or off. A red cross means that thing is off, as on ChestKit's flaps.
 internal static class SpawnerButtons
 {
     private const float ButtonSize = 52f;
@@ -69,22 +69,22 @@ internal static class SpawnerButtons
         Vector3 from = player ? player!.transform.position : _closest.Position;
         string meters = Vector3.Distance(from, _closest.Position).ToString("0");
 
-        bool isProtected = ProtectionStore.IsProtected(_closest.Key);
-        SetState(_protect!, isProtected, Icons.Shield,
+        bool isProtected = SpawnerData.IsProtected(_closest.View.GetZDO());
+        SetState(_protect!, isProtected, ButtonIcons.Shield,
             isProtected ? Messages.UnprotectTooltipTopic : Messages.ProtectTooltipTopic,
             string.Format(isProtected ? Messages.UnprotectTooltip : Messages.ProtectTooltip, _closest.Name, meters));
 
         bool highlighting = SpawnerHighlight.IsEnabled;
-        SetState(_highlight!, highlighting, Icons.Eye,
+        SetState(_highlight!, highlighting, ButtonIcons.Eye,
             highlighting ? Messages.StopHighlightTooltipTopic : Messages.HighlightTooltipTopic,
             string.Format(highlighting ? Messages.StopHighlightTooltip : Messages.HighlightTooltip, _closest.Name, meters));
     }
 
-    // A cross shows what a click does: crossed while on (a click turns it off), plain while off.
-    private static void SetState(SpawnerButton button, bool on, string[] iconItems, string topic, string text)
+    // Crossed while off, plain while on.
+    private static void SetState(SpawnerButton button, bool on, System.Func<Sprite> icon, string topic, string text)
     {
-        if (!button.Icon.sprite) button.Icon.sprite = Icons.Find(iconItems);
-        if (button.Cross.activeSelf != on) button.Cross.SetActive(on);
+        if (!button.Icon.sprite) button.Icon.sprite = icon();
+        if (button.Cross.activeSelf == on) button.Cross.SetActive(!on);
         if (!button.Tooltip || (button.Tooltip!.m_topic == topic && button.Tooltip.m_text == text)) return;
         button.Tooltip.m_topic = topic;
         button.Tooltip.m_text = text;

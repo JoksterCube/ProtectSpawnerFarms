@@ -45,7 +45,7 @@ internal static class SpawnerHighlight
             Camera.onPreRender += OnPreRender;
             _hooked = true;
         }
-        if (!_enabled) SetTarget(null);
+        if (!_enabled) Stop();
         else Update();
         PlayerMessages.Center(_enabled ? Messages.HighlightOn : Messages.HighlightOff);
     }
@@ -64,12 +64,15 @@ internal static class SpawnerHighlight
             return;
         }
         SetTarget(nearest);
+        // Every update, so it comes back after dying (which clears statuses).
+        HighlightingStatus.Set(player, true);
     }
 
     internal static void Stop()
     {
         _enabled = false;
         SetTarget(null);
+        HighlightingStatus.Set(Player.m_localPlayer, false);
     }
 
     private static void SetTarget(Spawner? spawner)

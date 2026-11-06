@@ -37,6 +37,9 @@ internal static class SpawnerRegistry
 
     private static readonly Dictionary<Destructible, Spawner> Spawners = [];
     private static readonly List<Destructible> Removed = [];
+    // Spawner prefabs by hash, with their default health, worked out once per world from the game's prefabs.
+    private static readonly Dictionary<int, Destructible> Prefabs = [];
+    private static ZNetScene? _prefabsFrom;
 
     internal static IEnumerable<Spawner> All => Spawners.Values;
 
@@ -46,10 +49,45 @@ internal static class SpawnerRegistry
         ZNetView view = destructible.GetComponent<ZNetView>();
         if (!view || view.GetZDO() == null) return;
 
-        Vector3 position = view.GetZDO().GetPosition();
         string prefab = view.GetPrefabName();
-        string key = SpawnerKey.For(prefab, position.x, position.y, position.z);
-        Spawners[destructible] = new Spawner(destructible, view, key, DisplayName(destructible, prefab));
+        Spawners[destructible] = new Spawner(destructible, view, KeyOf(prefab, view.GetZDO()), DisplayName(destructible, prefab));
+    }
+
+    private static string KeyOf(string prefab, ZDO zdo)
+    {
+        Vector3 position = zdo.GetPosition();
+        return SpawnerKey.For(prefab, position.x, position.y, position.z);
+    }
+
+    // Whether a world object is a spawner, from its data only, so it also works for spawners that aren't loaded.
+    internal static bool IsSpawner(ZDO zdo) => Prefab(zdo.GetPrefab()) != null;
+
+    // The spawner's key from its data; null when it isn't a spawner.
+    internal static string? KeyOf(ZDO zdo)
+    {
+        Destructible? prefab = Prefab(zdo.GetPrefab());
+        return prefab ? KeyOf(prefab!.name, zdo) : null;
+    }
+
+    // The game's own health for a kind of spawner (world level included).
+    internal static float DefaultHealth(int prefabHash)
+    {
+        Destructible? prefab = Prefab(prefabHash);
+        return prefab ? DefaultHealth(prefab!) : 0f;
+    }
+
+    private static Destructible? Prefab(int prefabHash)
+    {
+        if (!ZNetScene.instance) return null;
+        if (_prefabsFrom != ZNetScene.instance)
+        {
+            _prefabsFrom = ZNetScene.instance;
+            Prefabs.Clear();
+            foreach (KeyValuePair<int, GameObject> entry in ZNetScene.instance.m_namedPrefabs)
+                if (entry.Value && entry.Value.TryGetComponent(out Destructible destructible) && entry.Value.GetComponentInChildren<SpawnArea>(true))
+                    Prefabs[entry.Key] = destructible;
+        }
+        return Prefabs.TryGetValue(prefabHash, out Destructible found) ? found : null;
     }
 
     internal static bool TryGet(Destructible destructible, out Spawner spawner) =>
@@ -79,7 +117,12 @@ internal static class SpawnerRegistry
         return closest;
     }
 
-    internal static void Clear() => Spawners.Clear();
+    internal static void Clear()
+    {
+        Spawners.Clear();
+        Prefabs.Clear();
+        _prefabsFrom = null;
+    }
 
     // The game's own health for this spawner, as Destructible works it out (world level included).
     internal static float DefaultHealth(Destructible destructible)

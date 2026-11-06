@@ -20,12 +20,12 @@ internal static class HoverTextPatch
         {
             if (!__instance.TryGetComponent(out Destructible destructible)
                 || !SpawnerRegistry.TryGet(destructible, out SpawnerRegistry.Spawner spawner)
-                || !ProtectionStore.Current.TryGet(spawner.Key, out SpawnerRecord record)
-                || !record.IsProtected) return;
+                || !SpawnerData.IsProtected(spawner.View.GetZDO())) return;
 
-            string line = string.IsNullOrEmpty(record.ProtectedBy)
+            string protector = SpawnerData.ProtectedBy(spawner.View.GetZDO());
+            string line = string.IsNullOrEmpty(protector)
                 ? Messages.HoverProtected
-                : string.Format(Messages.HoverProtectedBy, record.ProtectedBy);
+                : string.Format(Messages.HoverProtectedBy, protector);
             __result += $"\n<color={Color}>{line}</color>";
         }
         catch (Exception exception) { PatchGuard.Fail(Feature, exception); }
